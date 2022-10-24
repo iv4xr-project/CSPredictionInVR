@@ -3,7 +3,7 @@ This repository contains the work of Tiago Gonçalves for his master thesis.
 A program to generate a machine learning model capable of predicting Cybersickness in VR video recordings
 
 
-There are two versions of the program. One in the shape of a .py python script and the other in the format belonging to the platform it was intended for, google colabs
+There are two versions of the program. One in the shape of a .py python script and the other, a .ipynb file, in the format belonging to the platform it was intended and executed from, google colabs
 
 The remaining folders have self-explaining names. CSV_DATA contains all the data that was used, most in csv format, with a few exceptions here and there. Both the program and the auxiliary scrips make use of these files for various purposes, not least of which constructing the various models.
 RECORDINGS contains the video recordings, already down-sampled into the required format.
