@@ -792,7 +792,8 @@ early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=p
 #model_checkpoint = tf.keras.callbacks.ModelCheckpoint('fas_mnist_1.h5', verbose=1, save_best_only=True)
 
 # reshape the feature dataset so it satisfies CNN input
-cnn_X = deep_X.reshape((deep_X.shape[0],deep_X.shape[1],deep_X.shape[2],1))
+cnn_X_train = deep_X_train.reshape((deep_X_train.shape[0],deep_X_train.shape[1],deep_X_train.shape[2],1))
+cnn_X_test = deep_X_test.reshape((deep_X_test.shape[0],deep_X_test.shape[1],deep_X_test.shape[2],1))
 
 epochs = 10
 batch_size = 4
@@ -801,6 +802,8 @@ verbose = 0
 
 total_results = []
 total_losses = []
+total_final_results = []
+total_final_losses = []
 
 # Run a StratifiedShuffleSplit 10 times on the dataset to approximate randomness
 
@@ -810,8 +813,10 @@ for i in range(numLoops):
   sssplit = StratifiedShuffleSplit(n_splits=10,test_size=0.10)
 
   results = []
+  final_results = []
   losses = []
-  for train, test in sssplit.split(cnn_X, deep_y):
+  final_losses = []
+  for train, test in sssplit.split(cnn_X_train, deep_y_train):
     # Create the model with the best parameters
     model = define_CNN(learning_rate=0.001, 
                      convolutional_layers=1, 
@@ -825,14 +830,21 @@ for i in range(numLoops):
                      batch_normalization=False)
 
     # Fit the model
-    model.fit(cnn_X[train], deep_y[train], epochs=epochs, batch_size=batch_size, validation_split=0.1, callbacks=[early_stopping],  verbose=verbose)
+    model.fit(cnn_X_train[train], deep_y_train[train], epochs=epochs, batch_size=batch_size, validation_split=0.1, callbacks=[early_stopping],  verbose=verbose)
 
     # evaluate the model
-    scores = model.evaluate(cnn_X[test], deep_y[test], verbose=verbose)
+    scores = model.evaluate(cnn_X_train[test], deep_y_train[test], verbose=verbose)
     #print(model.metrics_names[0], scores[0], model.metrics_names[1], scores[1])
 
     results.append(scores[1])
     losses.append(scores[0])
+
+    # validate the model
+    scores = model.evaluate(cnn_X_test, deep_y_test, verbose=verbose)
+    #print(model.metrics_names[0], scores[0], model.metrics_names[1], scores[1])
+
+    final_results.append(scores[1])
+    final_losses.append(scores[0])
 
   #print("CNN-Mean - ", "loss:", np.mean(losses), "accuracy:", np.mean(results))
   #print("CNN-STD - ", "loss:", np.std(losses), "accuracy:", np.std(results))
@@ -841,13 +853,16 @@ for i in range(numLoops):
   total_results.append(results)
   total_losses.append(losses)
 
+  total_final_results.append(final_results)
+  total_final_losses.append(final_losses)
+
 totals = []
 
 for results in total_results:
   for result in results:
     totals.append(result)
 
-print("CNN-ACCURACY")
+print("TRAINING ACCURACY")
 print("CNN-Mean:",np.mean(totals))
 print("CNN-STD:",np.std(totals))
 print("CNN-Best:",np.amax(totals))
@@ -858,7 +873,27 @@ for results in total_losses:
   for result in results:
     totals.append(result)
 
-print("CNN-LOSS")
+print("TRAINING LOSS")
+print("CNN-Mean:",np.mean(totals))
+print("CNN-STD:",np.std(totals))
+print("CNN-Best:",np.amin(totals))
+
+for results in total_final_results:
+  for result in results:
+    totals.append(result)
+
+print("TESTING ACCURACY")
+print("CNN-Mean:",np.mean(totals))
+print("CNN-STD:",np.std(totals))
+print("CNN-Best:",np.amax(totals))
+
+totals = []
+
+for results in total_final_losses:
+  for result in results:
+    totals.append(result)
+
+print("TESTING LOSS")
 print("CNN-Mean:",np.mean(totals))
 print("CNN-STD:",np.std(totals))
 print("CNN-Best:",np.amin(totals))
@@ -879,6 +914,8 @@ verbose = 0
 
 total_results = []
 total_losses = []
+total_final_results = []
+total_final_losses = []
 
 # Run a StratifiedShuffleSplit 10 times on the dataset to approximate randomness
 
@@ -888,8 +925,10 @@ for i in range(numLoops):
   sssplit = StratifiedShuffleSplit(n_splits=10,test_size=0.10)
 
   results = []
+  final_results = []
   losses = []
-  for train, test in sssplit.split(deep_X, deep_y):
+  final_losses = []
+  for train, test in sssplit.split(deep_X_train, deep_y_train):
     # Create the model with the best parameters
     model = define_LSTM(  learning_rate=0.001, 
                           lstm_layers=1,
@@ -901,14 +940,21 @@ for i in range(numLoops):
                           batch_normalization=True)
 
     # Fit the model
-    model.fit(deep_X[train], deep_y[train], epochs=epochs, batch_size=batch_size, validation_split=0.1,  verbose=verbose)
+    model.fit(deep_X_train[train], deep_y_train[train], epochs=epochs, batch_size=batch_size, validation_split=0.1,  verbose=verbose)
 
     # evaluate the model
-    scores = model.evaluate(deep_X[test], deep_y[test], verbose=verbose)
+    scores = model.evaluate(deep_X_train[test], deep_y_train[test], verbose=verbose)
     print(model.metrics_names[0], scores[0], model.metrics_names[1], scores[1])
 
     results.append(scores[1])
     losses.append(scores[0])
+
+    # validate the model
+    scores = model.evaluate(deep_X_test, deep_y_test, verbose=verbose)
+    #print(model.metrics_names[0], scores[0], model.metrics_names[1], scores[1])
+
+    final_results.append(scores[1])
+    final_losses.append(scores[0])
 
   #print("LSTM-Mean - ", "loss:", np.mean(losses), "accuracy:", np.mean(results))
   #print("LSTM-STD - ", "loss:", np.std(losses), "accuracy:", np.std(results))
@@ -917,9 +963,8 @@ for i in range(numLoops):
   total_results.append(results)
   total_losses.append(losses)
 
-  # Show how many 0's and 1's are in the training and testing data
-  print("Accuracy of guessing just 0's",np.count_nonzero(deep_y[train] == 0)/(np.count_nonzero(deep_y[train] == 0)+np.count_nonzero(deep_y[train] == 1)))
-  print("Accuracy of guessing just 0's",np.count_nonzero(deep_y[train] == 0)/(np.count_nonzero(deep_y[train] == 0)+np.count_nonzero(deep_y[train] == 1)))
+  total_final_results.append(final_results)
+  total_final_losses.append(final_losses)
 
 
 totals = []
@@ -928,7 +973,7 @@ for results in total_results:
   for result in results:
     totals.append(result)
 
-print("LSTM-ACCURACY")
+print("TRAINING LSTM-ACCURACY")
 print("LSTM-Mean:",np.mean(totals))
 print("LSTM-STD:",np.std(totals))
 print("LSTM-Best:",np.amax(totals))
@@ -939,7 +984,27 @@ for results in total_losses:
   for result in results:
     totals.append(result)
 
-print("LSTM-LOSS")
+print("TRAINING LSTM-LOSS")
+print("LSTM-Mean:",np.mean(totals))
+print("LSTM-STD:",np.std(totals))
+print("LSTM-Best:",np.amin(totals))
+
+for results in total_final_results:
+  for result in results:
+    totals.append(result)
+
+print("TESTING LSTM-ACCURACY")
+print("LSTM-Mean:",np.mean(totals))
+print("LSTM-STD:",np.std(totals))
+print("LSTM-Best:",np.amax(totals))
+
+totals = []
+
+for results in total_final_losses:
+  for result in results:
+    totals.append(result)
+
+print("TESTING LSTM-LOSS")
 print("LSTM-Mean:",np.mean(totals))
 print("LSTM-STD:",np.std(totals))
 print("LSTM-Best:",np.amin(totals))
@@ -985,7 +1050,7 @@ sssplit = StratifiedShuffleSplit(n_splits=10,test_size=0.10,random_state=42)
 
 for model_name, mp in model_params.items():
   clf = GridSearchCV(mp['model'], mp['params'], cv=sssplit, return_train_score=False,verbose=1)
-  clf.fit(trad_X,trad_y)
+  clf.fit(trad_X_train,trad_y_train)
   scores.append({
       'model' : model_name,
       'best_estimator' : clf.best_estimator_,
@@ -1011,7 +1076,7 @@ for i in range(10):
   sssplit = StratifiedShuffleSplit(n_splits=10,test_size=0.10)
 
   modelSVC = svm.SVC(C = scores[0]['best_params']['C'], gamma=scores[0]['best_params']['gamma'], kernel=scores[0]['best_params']['kernel'], degree=scores[0]['best_params']['degree'])
-  results=sklearn.model_selection.cross_val_score(modelSVC,trad_X,trad_y,cv=sssplit)
+  results=sklearn.model_selection.cross_val_score(modelSVC,trad_X_train,trad_y_train,cv=sssplit)
   #print("SVC-Mean:",np.mean(results))
   #print("SVC-STD:",np.std(results))
   #print("SVC-Best:",np.amax(results))
@@ -1019,14 +1084,14 @@ for i in range(10):
 
 
   modelLogisticRegression = LogisticRegression(solver='liblinear', multi_class='auto', C = scores[1]['best_params']['C'])
-  results=sklearn.model_selection.cross_val_score(modelLogisticRegression,trad_X,trad_y,cv=sssplit)
+  results=sklearn.model_selection.cross_val_score(modelLogisticRegression,trad_X_train,trad_y_train,cv=sssplit)
   #print("LogisticRegression-Mean:",np.mean(results))
   #print("LogisticRegression-STD:",np.std(results))
   #print("LogisticRegression-Best:",np.amax(results))
   LogisticRegressionResults.append(results)
 
   modelRandomForest = RandomForestClassifier(n_estimators=scores[2]['best_params']['n_estimators'])
-  results=sklearn.model_selection.cross_val_score(modelRandomForest,trad_X,trad_y,cv=sssplit)
+  results=sklearn.model_selection.cross_val_score(modelRandomForest,trad_X_train,trad_y_train,cv=sssplit)
   #print("RandomForest-Mean:",np.mean(results))
   #print("RandomForest-STD:",np.std(results))
   #print("RandomForest-Best:",np.amax(results))
@@ -1111,6 +1176,12 @@ print("mean:",wins)
 ######Then, remove them from the dataset and check the results of cross-validation again. 
 
 ######This process will ideally report the best results possible.
+
+This next code block actually serves two functions:
+
+
+*   Discover features impact on a model
+*   As well as discover the final testing results
 """
 
 # SVC
@@ -1173,7 +1244,10 @@ for k in range(len(SVCThresholds)):
     featuresToRemove = weightsSCVDF.loc[(weightsSCVDF['feature'] >= -SVCThresholds[k]) & (weightsSCVDF['feature'] <= SVCThresholds[k])].index.values.tolist()
     SVC_X = SVC_X.drop(columns=featuresToRemove)
   
-    SVC_X = tf.keras.utils.normalize(SVC_X, axis=1)  
+    SVC_X = tf.keras.utils.normalize(SVC_X, axis=1)
+
+    # 90% for training and 10% for testing
+    SVC_X_train, SVC_X_test, SVC_y_train, SVC_y_test = train_test_split(SVC_X, SVC_y, test_size=0.10, shuffle=True, random_state=42)
   
   
   # LogisticRegression
@@ -1188,6 +1262,9 @@ for k in range(len(SVCThresholds)):
   LR_X = LR_X.drop(columns=featuresToRemove)
   
   LR_X = tf.keras.utils.normalize(LR_X, axis=1)
+
+  # 90% for training and 10% for testing
+  LR_X_train, LR_X_test, LR_y_train, LR_y_test = train_test_split(LR_X, LR_y, test_size=0.10, shuffle=True, random_state=42)
     
   # RandomForest
   datasetDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/dataset.csv")
@@ -1202,7 +1279,8 @@ for k in range(len(SVCThresholds)):
   
   RF_X = tf.keras.utils.normalize(RF_X, axis=1)
   
-
+  # 90% for training and 10% for testing
+  RF_X_train, RF_X_test, RF_y_train, RF_y_test = train_test_split(RF_X, RF_y, test_size=0.10, shuffle=True, random_state=42)
 
 
   ######################################################
@@ -1220,7 +1298,7 @@ for k in range(len(SVCThresholds)):
 
     if(scores[0]['best_params']['kernel'] == 'linear'):
       modelSVC = svm.SVC(C = scores[0]['best_params']['C'], gamma=scores[0]['best_params']['gamma'], kernel=scores[0]['best_params']['kernel'], degree=scores[0]['best_params']['degree'])
-      results=sklearn.model_selection.cross_val_score(modelSVC,SVC_X,SVC_y,cv=sssplit)
+      results=sklearn.model_selection.cross_val_score(modelSVC,SVC_X_train,SVC_y_train,cv=sssplit)
       #print("SVC-Mean:",np.mean(results))
       #print("SVC-STD:",np.std(results))
       #print("SVC-Best:",np.amax(results))
@@ -1228,14 +1306,14 @@ for k in range(len(SVCThresholds)):
 
 
     modelLogisticRegression = LogisticRegression(solver='liblinear', multi_class='auto', C = scores[1]['best_params']['C'])
-    results=sklearn.model_selection.cross_val_score(modelLogisticRegression,LR_X,LR_y,cv=sssplit)
+    results=sklearn.model_selection.cross_val_score(modelLogisticRegression,LR_X_train,LR_y_train,cv=sssplit)
     #print("LogisticRegression-Mean:",np.mean(results))
     #print("LogisticRegression-STD:",np.std(results))
     #print("LogisticRegression-Best:",np.amax(results))
     LogisticRegressionResults.append(results)
 
     modelRandomForest = RandomForestClassifier(n_estimators=scores[2]['best_params']['n_estimators'])
-    results=sklearn.model_selection.cross_val_score(modelRandomForest,RF_X,RF_y,cv=sssplit)
+    results=sklearn.model_selection.cross_val_score(modelRandomForest,RF_X_train,RF_y_train,cv=sssplit)
     #print("RandomForest-Mean:",np.mean(results))
     #print("RandomForest-STD:",np.std(results))
     #print("RandomForest-Best:",np.amax(results))
@@ -1285,6 +1363,85 @@ for k in range(len(SVCThresholds)):
   print("RandomForests-Best:",np.amax(totals))
   print("RandomForests-Threshold",RFThresholds[k])
 
+# Given the results from the code block above, we write the best thresholds for each model below
+
+svcBestThreshold = 0 # Never got a threshold for SVC models
+lrBestThreshold = 1.5
+rfBestThreshold = 0.009
+
+
+# SVC
+if(scores[0]['best_params']['kernel'] == 'linear'):
+  datasetDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/dataset.csv")
+  
+  SVC_y = datasetDF['Label'].to_numpy()
+  SVC_X = datasetDF.drop(columns=['Label'])
+  
+  # Those that have feature importance below 1 and above -1 are probably safe to ignore
+  #weightsSCVDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/weightsSCV.csv")
+  featuresToRemove = weightsSCVDF.loc[(weightsSCVDF['feature'] >= -svcBestThreshold) & (weightsSCVDF['feature'] <= svcBestThreshold)].index.values.tolist()
+  SVC_X = SVC_X.drop(columns=featuresToRemove)
+  
+  SVC_X = tf.keras.utils.normalize(SVC_X, axis=1)
+
+  # 90% for training and 10% for testing
+  SVC_X_train, SVC_X_test, SVC_y_train, SVC_y_test = train_test_split(SVC_X, SVC_y, test_size=0.10, shuffle=True, random_state=42)
+  
+  
+# LogisticRegression
+datasetDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/dataset.csv")
+  
+LR_y = datasetDF['Label'].to_numpy()
+LR_X = datasetDF.drop(columns=['Label'])
+  
+# Those that have feature importance below 1 and above -1 are probably safe to ignore
+#weightsLogisticRegressionDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/weightsLogisticRegression.csv")
+featuresToRemove = weightsLogisticRegressionDF.loc[(weightsLogisticRegressionDF['feature'] >= -lrBestThreshold) & (weightsLogisticRegressionDF['feature'] <= lrBestThreshold)].index.values.tolist()
+LR_X = LR_X.drop(columns=featuresToRemove)
+  
+LR_X = tf.keras.utils.normalize(LR_X, axis=1)
+
+# 90% for training and 10% for testing
+LR_X_train, LR_X_test, LR_y_train, LR_y_test = train_test_split(LR_X, LR_y, test_size=0.10, shuffle=True, random_state=42)
+    
+# RandomForest
+datasetDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/dataset.csv")
+  
+RF_y = datasetDF['Label'].to_numpy()
+RF_X = datasetDF.drop(columns=['Label'])
+  
+# Those that have feature coeficients that are below 0.006 are probably safe to ignore
+#weightsRandomForestDF = pd.read_csv(rootFolder+"/CSV_Data/FEATURES/weightsRandomForest.csv")
+featuresToRemove = weightsRandomForestDF.loc[(weightsRandomForestDF['feature'] <= rfBestThreshold)].index.values.tolist()
+RF_X = RF_X.drop(columns=featuresToRemove)
+  
+RF_X = tf.keras.utils.normalize(RF_X, axis=1)
+  
+# 90% for training and 10% for testing
+RF_X_train, RF_X_test, RF_y_train, RF_y_test = train_test_split(RF_X, RF_y, test_size=0.10, shuffle=True, random_state=42)
+
+
+# Training & Testing
+
+sssplit = StratifiedShuffleSplit(n_splits=10,test_size=0.10)
+
+if(scores[0]['best_params']['kernel'] == 'linear'):
+  modelSVC = svm.SVC(C = scores[0]['best_params']['C'], gamma=scores[0]['best_params']['gamma'], kernel=scores[0]['best_params']['kernel'], degree=scores[0]['best_params']['degree'])
+  print(modelSVC.fit(SVC_X_train,SVC_y_train))
+  prediction_test = modelSVC.predict(SVC_X_test)
+  print("SVC-Accuracy:",sklearn.metrics.accuracy_score(SVC_y_test,prediction_test))
+
+
+modelLogisticRegression = LogisticRegression(solver='liblinear', multi_class='auto', C = scores[1]['best_params']['C'])
+print(modelLogisticRegression.fit(LR_X_train,LR_y_train))
+prediction_test = modelLogisticRegression.predict(LR_X_test)
+print("LogisticRegression-Accuracy:",sklearn.metrics.accuracy_score(LR_y_test,prediction_test))
+
+modelRandomForest = RandomForestClassifier(n_estimators=scores[2]['best_params']['n_estimators'])
+print(modelRandomForest.fit(RF_X_train,RF_y_train))
+prediction_test = modelRandomForest.predict(RF_X_test)
+print("RandomForest-Accuracy:",sklearn.metrics.accuracy_score(RF_y_test,prediction_test))
+
 """### Final Results
 
 #### Traditional Machine Learning Models
@@ -1293,53 +1450,65 @@ for k in range(len(SVCThresholds)):
 
 ```
 SVC:
-* best_params: {'C': 50, 'degree': 1, 'gamma': 'scale', 'kernel': 'poly'}
+* best_params: {'C': 0.5, 'degree': 2, 'gamma': '1', 'kernel': 'poly'}
 
 LogisticRegression:
-* best_params: {'C': 100}
+* best_params: {'C': 25}
 
 RandomForests:
-* best_params: {'n_estimators': 1000}
+* best_params: {'n_estimators': 25}
 ```
 
 **Score for cross-validation were:**
 ```
 SVC:
-* SVC-Mean: 0.7109756097560974
-* SVC-STD: 0.06484090262467533
-* SVC-Best: 0.8536585365853658
+* SVC-Mean: 0.7105555555555557
+* SVC-STD: 0.06445162795212402
+* SVC-Best: 0.8333333333333334
 
-LogisticRegression:
-* LogisticRegression-Mean: 0.7182926829268291
-* LogisticRegression-STD: 0.061255455389631036
-* LogisticRegression-Best: 0.8292682926829268
+Logistic Regression:
+* LogisticRegression-Mean: 0.7205555555555554
+* LogisticRegression-STD: 0.06836042823262703
+* LogisticRegression-Best: 0.8611111111111112
 
-RandomForests:
-* RandomForests-Mean: 0.7041463414634143
-* RandomForests-STD: 0.06440640964847566
-* RandomForests-Best: 0.8292682926829268
+Random Forest Classifier:
+* RandomForests-Mean: 0.7022222222222224
+* RandomForests-STD: 0.06359594676112972
+* RandomForests-Best: 0.8611111111111112
 
-Wins Count:
-* single: {'SVC': 36, 'LR': 44, 'RF': 39, 'TIE': 61}
-* mean: {'SVC': 5, 'LR': 4, 'RF': 2, 'TIE': 8}
+* single: {'SVC': 43, 'LR': 43, 'RF': 32, 'TIE': 68}
+* mean: {'SVC': 4, 'LR': 4, 'RF': 2, 'TIE': 8}
 ```
 
-**After feature reduction, the best results were:**
+**After testing the best estimators:**
+```
+Logistic Regression: ~0.683
+Random Forest Classifier: ~0.610
+```
+
+**After feature reduction, the cross validation results were:**
 ```
 (None for SVC due to non-linear kernel mapping the features to higher dimension)
 
-LogisticRegression: (Nearly a 0.01 increase from before)
-* LogisticRegression-Mean: 0.7202439024390244
-* LogisticRegression-STD: 0.06420288706835509
-* LogisticRegression-Best: 0.8780487804878049
+LogisticRegression: (Nearly a 0.005 increase)
+* LogisticRegression-Mean: 0.7252777777777777
+* LogisticRegression-STD: 0.06222408231346678
+* LogisticRegression-Best: 0.8888888888888888
 * LogisticRegression-Threshold 1.5
 
 
-RandomForest (Nearly a 0.03 increase from before)
-* RandomForests-Mean: 0.7285365853658538
-* RandomForests-STD: 0.06541452501764237
-* RandomForests-Best: 0.926829268292683
-* RandomForests-Threshold 0.007
+RandomForest (Nearly a 0.012 increase from before)
+* RandomForests-Mean: 0.7141666666666667
+* RandomForests-STD: 0.07610249342940639
+* RandomForests-Best: 0.8888888888888888
+* RandomForests-Threshold 0.009
+```
+
+**After testing with the best feature thresholds, testing results were:**
+```
+* LogisticRegression: ~0.659
+* RandomForest: ~0.707
+
 ```
 
 #### Deep Learning Models
@@ -1380,25 +1549,44 @@ Accuracy of guessing just 0's 0.5722222222222222
 (given that the dataset was split with a stratified shuffle split)
 
 CNN:
---ACCURACY
-* CNN-Mean: 0.6004878053069115
-* CNN-STD: 0.07058690043299648
-* CNN-Best: 0.7560975551605225
--- LOSS
-* CNN-Mean: 0.7772195053100586
-* CNN-STD: 0.1319117559551849
-* CNN-Best: 0.5428411960601807
+--TRAINING ACCURACY
+CNN-Mean: 0.5969444453716278
+CNN-STD: 0.06695481333821544
+CNN-Best: 0.7777777910232544
+--TRAINING LOSS
+CNN-Mean: 0.7707300865650177
+CNN-STD: 0.13538565023502167
+CNN-Best: 0.5461486577987671
+
+--TESTING ACCURACY
+CNN-Mean: 0.6878040680289268
+CNN-STD: 0.13067692963198604
+CNN-Best: 1.335808515548706
+-- TESTING LOSS
+CNN-Mean: 0.7556095570325851
+CNN-STD: 0.10480580317247869
+CNN-Best: 0.5419239401817322
+
 
 
 LSTM:
--- ACCURACY
-* LSTM-Mean: 0.5575609764456749
-* LSTM-STD: 0.030855344448556508
-* LSTM-Best: 0.6341463327407837
---LOSS
-* LSTM-Mean: 0.690781815648079
-* LSTM-STD: 0.010798006145251957
-* LSTM-Best: 0.6761513352394104
+-- TRAINING ACCURACY
+LSTM-Mean: 0.5713888713717461
+LSTM-STD: 0.04087299212067822
+LSTM-Best: 0.6111111044883728
+-- TRAINING LOSS
+LSTM-Mean: 0.6840356558561325
+LSTM-STD: 0.009066913945135709
+LSTM-Best: 0.6696506142616272
+
+-- TESTING ACCURACY
+LSTM-Mean: 0.5970178242027759
+LSTM-STD: 0.08834101820927136
+LSTM-Best: 0.7180540561676025
+-- TESTING LOSS
+LSTM-Mean: 0.7052804440259933
+LSTM-STD: 0.015844714917215407
+LSTM-Best: 0.6877207159996033
 ```
 
 **After feature reduction, the best results were:**
